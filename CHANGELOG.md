@@ -14,3 +14,9 @@ First recorded feature milestone after the initial local Phillap build.
 - Added Critical/Non-critical upload labels; non-critical files receive a 10-day review date but are never deleted automatically.
 - Kept records local; no bank linking, shared user accounts, embedded browser, direct Google sign-in, live store prices, or cloud AI are claimed by this release.
 
+## 0.0.3 — 2026-10-02
+
+- Added a searchable Library for uploaded documents/PDFs and saved assistant conversations, with editable categories and saved-chat open/remove actions.
+- Added basic read-only Excel (.xlsx) ingestion with sheet/cell references; hidden sheets and rows are excluded by default.
+- Added suggested categories at upload and a visible review window for non-critical file retention (files are never deleted automatically).
+

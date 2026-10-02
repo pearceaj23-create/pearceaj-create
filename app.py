@@ -5,6 +5,7 @@ from contextlib import contextmanager
 from datetime import datetime, timedelta
 import json
 import os
+import posixpath
 import re
 import shutil
 import sqlite3
@@ -22,10 +23,10 @@ from pathlib import Path
 
 HOST = "127.0.0.1"
 PORT = 8765
-APP_VERSION = "0.0.2"
+APP_VERSION = "0.0.3"
 DEFAULT_REPO = "pearceaj23-create/pearceaj-create"
 TEXT_EXTENSIONS = {".md", ".txt", ".rst", ".py", ".js", ".ts", ".tsx", ".json", ".yaml", ".yml", ".toml", ".html", ".css", ".csv", ".xml", ".ini"}
-UPLOAD_EXTENSIONS = TEXT_EXTENSIONS | {".pdf", ".docx"}
+UPLOAD_EXTENSIONS = TEXT_EXTENSIONS | {".pdf", ".docx", ".xlsx"}
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 MAX_DOWNLOAD_BYTES = 50 * 1024 * 1024
 SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "__pycache__", "dist", "build"}
@@ -34,6 +35,7 @@ CONFIG_FILE = CONFIG_DIR / "settings.json"
 WEB_DIR = Path(__file__).resolve().parent
 DATA_FILE = CONFIG_DIR / "phillap.sqlite3"
 AREAS = {"home": "Home", "thoughts": "Thoughts", "dreams": "Dreams", "todos": "To-dos", "finances": "Finances", "journal": "Journal", "projects": "Plans & projects", "goals": "Big goals"}
+CATEGORIES = ("Finance", "Family", "Health", "Home", "Legal", "Projects", "Work", "Education", "General", "Other")
 
 
 @contextmanager
@@ -70,18 +72,23 @@ def db_connect():
             title TEXT NOT NULL, completed INTEGER NOT NULL DEFAULT 0, sort_order INTEGER NOT NULL DEFAULT 0)""")
         conn.execute("""CREATE TABLE IF NOT EXISTS uploaded_file_meta (
             file_id TEXT PRIMARY KEY, importance TEXT NOT NULL CHECK(importance IN ('critical','non-critical')),
-            uploaded_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, retained INTEGER NOT NULL DEFAULT 0)""")
+            uploaded_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, retained INTEGER NOT NULL DEFAULT 0,
+            category TEXT NOT NULL DEFAULT 'Other')""")
         conn.execute("""CREATE TABLE IF NOT EXISTS goals (
             id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, description TEXT NOT NULL DEFAULT '',
             priority INTEGER NOT NULL DEFAULT 2 CHECK(priority BETWEEN 1 AND 3),
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)""")
         conn.execute("""CREATE TABLE IF NOT EXISTS conversations (
-            id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)""")
+            id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, category TEXT NOT NULL DEFAULT 'Other',
+            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)""")
         conn.execute("""CREATE TABLE IF NOT EXISTS conversation_messages (
             id INTEGER PRIMARY KEY AUTOINCREMENT, conversation_id INTEGER NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
             role TEXT NOT NULL CHECK(role IN ('user','assistant')), content TEXT NOT NULL,
             sources_json TEXT NOT NULL DEFAULT '[]', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)""")
+        for table in ("uploaded_file_meta", "conversations"):
+            columns = {row["name"] for row in conn.execute(f"PRAGMA table_info({table})")}
+            if "category" not in columns:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN category TEXT NOT NULL DEFAULT 'Other'")
         conn.execute("PRAGMA foreign_keys=ON")
         yield conn
         conn.commit()
@@ -94,7 +101,7 @@ def db_connect():
 
 def list_conversations():
     with db_connect() as conn:
-        rows = conn.execute("SELECT id,title,updated_at FROM conversations ORDER BY updated_at DESC LIMIT 100").fetchall()
+        rows = conn.execute("SELECT id,title,category,updated_at FROM conversations ORDER BY updated_at DESC LIMIT 100").fetchall()
     return [dict(row) for row in rows]
 
 
@@ -123,10 +130,12 @@ def delete_conversation(conversation_id):
             raise ValueError("Conversation not found.")
 
 
-def save_conversation_turn(conversation_id, question, answer, sources):
+def save_conversation_turn(conversation_id, question, answer, sources, category="Other"):
+    if category not in CATEGORIES:
+        category = "Other"
     with db_connect() as conn:
         if conversation_id is None:
-            cursor = conn.execute("INSERT INTO conversations(title) VALUES(?)", (question[:80],))
+            cursor = conn.execute("INSERT INTO conversations(title,category) VALUES(?,?)", (question[:80], category))
             conversation_id = cursor.lastrowid
         else:
             try:
@@ -135,6 +144,7 @@ def save_conversation_turn(conversation_id, question, answer, sources):
                 raise ValueError("Conversation id is invalid.") from exc
             if not conn.execute("SELECT 1 FROM conversations WHERE id=?", (conversation_id,)).fetchone():
                 raise ValueError("Conversation not found.")
+            conn.execute("UPDATE conversations SET category=? WHERE id=?", (category, conversation_id))
         conn.execute("INSERT INTO conversation_messages(conversation_id,role,content) VALUES(?, 'user', ?)", (conversation_id, question))
         conn.execute("INSERT INTO conversation_messages(conversation_id,role,content,sources_json) VALUES(?, 'assistant', ?, ?)", (conversation_id, answer, json.dumps(sources)))
         conn.execute("UPDATE conversations SET updated_at=CURRENT_TIMESTAMP WHERE id=?", (conversation_id,))
@@ -477,6 +487,59 @@ def read_document_text(file):
             raise RuntimeError("PDF reading is unavailable. Install dependencies with `pip install -r requirements.txt`.") from exc
         reader = PdfReader(str(file))
         return "\n\n".join(page.extract_text() or "" for page in reader.pages)
+    if suffix == ".xlsx":
+        try:
+            with zipfile.ZipFile(file) as archive:
+                entries = {item.filename: item.file_size for item in archive.infolist()}
+                if sum(entries.values()) > 40 * 1024 * 1024 or any(size > 12 * 1024 * 1024 for size in entries.values()):
+                    raise ValueError("This workbook expands beyond Phillap’s safe processing limit.")
+                workbook = ET.fromstring(archive.read("xl/workbook.xml"))
+                relationships = ET.fromstring(archive.read("xl/_rels/workbook.xml.rels"))
+                rel_ns = "{http://schemas.openxmlformats.org/package/2006/relationships}"
+                rel_targets = {rel.attrib["Id"]: rel.attrib["Target"] for rel in relationships.findall(f"{rel_ns}Relationship")}
+                main_ns = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+                doc_rel_ns = "{http://schemas.openxmlformats.org/officeDocument/2006/relationships}"
+                shared = []
+                if "xl/sharedStrings.xml" in entries:
+                    shared_root = ET.fromstring(archive.read("xl/sharedStrings.xml"))
+                    shared = ["".join(t.text or "" for t in item.iter(f"{main_ns}t")) for item in shared_root.findall(f"{main_ns}si")]
+                result = []
+                for sheet in workbook.findall(f"{main_ns}sheets/{main_ns}sheet"):
+                    if sheet.attrib.get("state", "visible") != "visible":
+                        continue
+                    target = rel_targets.get(sheet.attrib.get(f"{doc_rel_ns}id"))
+                    if not target:
+                        continue
+                    path = posixpath.normpath(target.lstrip("/") if target.startswith("/") else posixpath.join("xl", target))
+                    if not path.startswith("xl/") or path not in entries:
+                        continue
+                    root = ET.fromstring(archive.read(path))
+                    title = sheet.attrib.get("name", "Sheet")
+                    for row in root.findall(f".//{main_ns}sheetData/{main_ns}row"):
+                        if row.attrib.get("hidden") == "1":
+                            continue
+                        cells = []
+                        for cell in row.findall(f"{main_ns}c"):
+                            address, value = cell.attrib.get("r", "?"), cell.find(f"{main_ns}v")
+                            if cell.attrib.get("t") == "inlineStr":
+                                text = "".join(t.text or "" for t in cell.iter(f"{main_ns}t"))
+                            elif value is None:
+                                text = ""
+                            elif cell.attrib.get("t") == "s":
+                                index = int(value.text or "-1")
+                                text = shared[index] if 0 <= index < len(shared) else ""
+                            else:
+                                text = value.text or ""
+                            formula = cell.find(f"{main_ns}f")
+                            if formula is not None and not text:
+                                text = f"[formula: {formula.text or ''}; cached result unavailable]"
+                            if text:
+                                cells.append(f"{address}={text}")
+                        if cells:
+                            result.append(f"Sheet: {title} | Row {row.attrib.get('r', '?')} | " + " | ".join(cells))
+                return "\n".join(result)
+        except (zipfile.BadZipFile, KeyError, ET.ParseError, OSError, RuntimeError) as exc:
+            raise ValueError(f"Could not read this Excel workbook: {exc}") from exc
     return ""
 
 
@@ -527,10 +590,10 @@ def list_uploaded_files():
             if not re.fullmatch(r"[a-f0-9]{32}", file_id):
                 continue
             conn.execute("INSERT OR IGNORE INTO uploaded_file_meta(file_id,importance) VALUES(?, 'critical')", (file_id,))
-            metadata = conn.execute("SELECT importance,uploaded_at,retained FROM uploaded_file_meta WHERE file_id=?", (file_id,)).fetchone()
+            metadata = conn.execute("SELECT importance,uploaded_at,retained,category FROM uploaded_file_meta WHERE file_id=?", (file_id,)).fetchone()
             uploaded_at = datetime.fromisoformat(metadata["uploaded_at"])
             expires_at = uploaded_at + timedelta(days=10) if metadata["importance"] == "non-critical" and not metadata["retained"] else None
-            result.append({"id": file_id, "name": name, "size": file.stat().st_size,
+            result.append({"id": file_id, "name": name, "size": file.stat().st_size, "category": metadata["category"],
                            "supported": file.suffix.lower() in UPLOAD_EXTENSIONS,
                            "importance": metadata["importance"], "uploaded_at": metadata["uploaded_at"],
                            "expires_at": expires_at.isoformat(sep=" ") if expires_at else None,
@@ -542,6 +605,9 @@ def store_uploaded_file(data):
     importance = data.get("importance")
     if importance not in {"critical", "non-critical"}:
         raise ValueError("Choose whether this file is critical or non-critical.")
+    category = data.get("category", "Other")
+    if category not in CATEGORIES:
+        raise ValueError("Choose a valid library category.")
     name = Path(data.get("name", "")).name.strip()
     extension = Path(name).suffix.lower()
     if not name or name in {".", ".."} or extension not in UPLOAD_EXTENSIONS:
@@ -563,12 +629,63 @@ def store_uploaded_file(data):
     target.write_bytes(content)
     try:
         with db_connect() as conn:
-            conn.execute("INSERT INTO uploaded_file_meta(file_id,importance) VALUES(?,?)", (file_id, importance))
+            conn.execute("INSERT INTO uploaded_file_meta(file_id,importance,category) VALUES(?,?,?)", (file_id, importance, category))
     except Exception:
         target.unlink(missing_ok=True)
         raise
-    return {"id": file_id, "name": name, "size": len(content), "supported": True, "importance": importance}
+    return {"id": file_id, "name": name, "size": len(content), "supported": True, "importance": importance, "category": category}
 
+
+def update_library_category(data):
+    category = data.get("category")
+    if category not in CATEGORIES:
+        raise ValueError("Choose a valid library category.")
+    kind = data.get("kind")
+    if kind == "file":
+        item_id = str(data.get("id", ""))
+        if not re.fullmatch(r"[a-f0-9]{32}", item_id):
+            raise ValueError("File id is invalid.")
+        uploaded_file(item_id)
+        table, key = "uploaded_file_meta", "file_id"
+    elif kind == "chat":
+        try:
+            item_id = int(data.get("id"))
+        except (ValueError, TypeError) as exc:
+            raise ValueError("Conversation id is invalid.") from exc
+        table, key = "conversations", "id"
+    else:
+        raise ValueError("Choose a file or saved chat.")
+    with db_connect() as conn:
+        result = conn.execute(f"UPDATE {table} SET category=? WHERE {key}=?", (category, item_id))
+        if not result.rowcount:
+            raise ValueError("Library item not found.")
+    return {"id": item_id, "kind": kind, "category": category}
+
+
+def library_search(query="", category="All"):
+    if category != "All" and category not in CATEGORIES:
+        raise ValueError("Choose a valid library category.")
+    term = query.strip().casefold()
+    files = [item for item in list_uploaded_files()
+             if (category == "All" or item["category"] == category)
+             and (not term or term in item["name"].casefold())]
+    with db_connect() as conn:
+        rows = conn.execute(
+            "SELECT c.id,c.title,c.category,c.updated_at,COUNT(m.id) AS message_count, "
+            "COALESCE(group_concat(m.content, ' '), '') AS searchable_text "
+            "FROM conversations c LEFT JOIN conversation_messages m ON m.conversation_id=c.id "
+            "GROUP BY c.id ORDER BY c.updated_at DESC LIMIT 100"
+        ).fetchall()
+    chats = []
+    for row in rows:
+        item = dict(row)
+        if category != "All" and item["category"] != category:
+            continue
+        if term and term not in (item["title"] + " " + item.pop("searchable_text", "")).casefold():
+            continue
+        item.pop("searchable_text", None)
+        chats.append(item)
+    return {"categories": ["All", *CATEGORIES], "files": files, "chats": chats}
 
 def delete_uploaded_file(file_id):
     if not re.fullmatch(r"[a-f0-9]{32}", file_id or ""):
@@ -863,6 +980,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json(list_goals())
             if route == "/api/conversations":
                 return self.send_json(list_conversations())
+            if route == "/api/library":
+                params = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+                return self.send_json(library_search(params.get("q", [""])[0], params.get("category", ["All"])[0]))
             if re.fullmatch(r"/api/conversations/\d+", route):
                 return self.send_json(get_conversation(route.rsplit("/",1)[-1]))
             if route == "/api/files":
@@ -935,6 +1055,8 @@ class Handler(BaseHTTPRequestHandler):
             if route == "/api/conversations/delete":
                 delete_conversation(data.get("id"))
                 return self.send_json({"deleted": True})
+            if route == "/api/library/category":
+                return self.send_json(update_library_category(data))
             if route == "/api/projects/delete":
                 delete_project(data)
                 return self.send_json({"deleted": True})
@@ -962,7 +1084,8 @@ class Handler(BaseHTTPRequestHandler):
                 conversation_id = data.get("conversation_id")
                 history = get_conversation(conversation_id)["messages"] if conversation_id else []
                 answer = ollama_chat(load_config(), question, history, web_excerpt, web_source)
-                conversation_id = save_conversation_turn(conversation_id, question, answer["answer"], answer["sources"])
+                category = data.get("category", "Other")
+                conversation_id = save_conversation_turn(conversation_id, question, answer["answer"], answer["sources"], category)
                 answer["conversation_id"] = conversation_id
                 return self.send_json(answer)
             if route == "/api/issue":
