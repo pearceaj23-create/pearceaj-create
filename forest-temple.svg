@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1800 1200" preserveAspectRatio="xMidYMid slice">
+<defs>
+ <linearGradient id="sky" x2="0" y2="1"><stop stop-color="#182e37"/><stop offset=".55" stop-color="#315049"/><stop offset="1" stop-color="#8d7e63"/></linearGradient>
+ <radialGradient id="glow"><stop stop-color="#f5dbac" stop-opacity=".7"/><stop offset="1" stop-color="#edc993" stop-opacity="0"/></radialGradient>
+ <linearGradient id="stone" x2="1"><stop stop-color="#545c59"/><stop offset=".3" stop-color="#b4a88b"/><stop offset=".7" stop-color="#857f70"/><stop offset="1" stop-color="#343f3d"/></linearGradient>
+ <linearGradient id="hill" x2="0" y2="1"><stop stop-color="#38594c"/><stop offset="1" stop-color="#182d29"/></linearGradient>
+ <linearGradient id="veil" x2="0" y2="1"><stop stop-color="#09141d" stop-opacity=".12"/><stop offset=".58" stop-color="#101522" stop-opacity=".2"/><stop offset="1" stop-color="#101522" stop-opacity=".82"/></linearGradient>
+ <pattern id="grain" width="85" height="73" patternUnits="userSpaceOnUse"><circle cx="9" cy="14" r="1" fill="#e8dec9" opacity=".11"/><circle cx="53" cy="49" r="1.4" fill="#e8dec9" opacity=".08"/><path d="M29 63l8-1" stroke="#e8dec9" opacity=".07"/></pattern>
+ <g id="tree"><path d="M0 0l-82 116 42-7-65 104 49-10-63 117h119l-60-117 46 10-64-104 39 7z" fill="#172d29"/><path d="M0 65l-53 82h29l-44 73h32l-49 91h85z" fill="#284539" opacity=".84"/><path d="M0 130v240" stroke="#302d26" stroke-width="17"/></g>
+ <g id="column"><path d="M0 0h210v31H0z" fill="#4b514e"/><path d="M15 31h180l-10 22H25z" fill="#c0b59a"/><path d="M31 53h148v265H31z" fill="url(#stone)"/><path d="M48 61v246m18-246v246m81-246v246m18-246v246" stroke="#dbceb0" stroke-opacity=".25" stroke-width="7"/><path d="M25 317h160v23H25zm-16 23h192v28H9z" fill="#777669"/><path d="M42 92h125M42 184h125M42 263h125" stroke="#68695f" stroke-opacity=".45" stroke-width="3"/></g>
+</defs>
+<path fill="url(#sky)" d="M0 0h1800v1200H0z"/><ellipse cx="920" cy="430" rx="560" ry="400" fill="url(#glow)"/>
+<path d="M0 515q180-165 365-35t360-32q190-165 400 26t350-19q185-152 325-24v769H0z" fill="#29473c" opacity=".75"/>
+<path d="M0 645q260-145 477-52t411-26q287-106 502 19t410-19v633H0z" fill="url(#hill)"/>
+<g opacity=".84"><use href="#tree" x="140" y="440" transform="scale(1.2)"/><use href="#tree" x="400" y="475" transform="scale(.9)"/><use href="#tree" x="1370" y="435" transform="scale(1.24)"/><use href="#tree" x="1600" y="475" transform="scale(.93)"/></g>
+<g opacity=".92"><use href="#column" x="165" y="385" transform="scale(1.28)"/><use href="#column" x="1400" y="386" transform="scale(1.28)"/></g>
+<g opacity=".78"><use href="#tree" x="570" y="550" transform="scale(.62)"/><use href="#tree" x="770" y="567" transform="scale(.5)"/><use href="#tree" x="1040" y="560" transform="scale(.61)"/><use href="#tree" x="1230" y="535" transform="scale(.75)"/></g>
+<path d="M640 690q275-65 570 0l195 510H400z" fill="#a99878" opacity=".2"/><path d="M790 695q125-33 250 0l190 505H600z" fill="#c3ad83" opacity=".12"/>
+<path fill="url(#grain)" d="M0 0h1800v1200H0z"/><path fill="url(#veil)" d="M0 0h1800v1200H0z"/>
+</svg>
