@@ -1,6 +1,6 @@
 # Phillap
 
-Phillap is a local-first personal life assistant for Windows. Its start dashboard links to separate Thoughts, Dreams, To-dos, Finances, Journal, Files, Assistant, and Computer areas. Entries are stored on this PC in SQLite; the local model does not automatically receive those personal entries. Section accents change with the selected life area.
+Phillap 0.0.2 is a local-first personal life assistant for Windows. Its start dashboard links to separate Thoughts, Dreams, To-dos, Money, Plans & projects, Journal, Files, Assistant, and Computer areas. You can also create custom spaces such as Baby, Health, Home, or Relationships. Entries are stored on this PC in SQLite; the local model does not automatically receive those personal entries.
 
 ## Start Phillap
 
@@ -10,17 +10,35 @@ Requirements: Windows, Python 3.10+, Git for Windows, GitHub CLI (optional), and
 2. Sign in with `gh auth login` if you want GitHub features.
 3. Double-click `Start-Phillap.bat`. It installs the PDF reader when needed, starts Phillap, and opens the browser. Or run `python -m pip install -r requirements.txt` and `python app.py`, then open `http://127.0.0.1:8765`.
 
-The web server listens on this PC only. Personal entries are stored in `%LOCALAPPDATA%\Phillap\phillap.sqlite3`; settings live in `%LOCALAPPDATA%\Phillap\settings.json`; uploaded files live in `%LOCALAPPDATA%\Phillap\files`. Data is not encrypted by Phillap and has no automatic cloud backup. Protect your Windows login, back up important data yourself, and do not store passwords, account numbers, or card details.
+The web server listens on this PC only. Personal entries are stored in `%LOCALAPPDATA%\Phillap\phillap.sqlite3`; settings live in `%LOCALAPPDATA%\Phillap\settings.json`; uploaded files live in `%LOCALAPPDATA%\Phillap\files`. The database is not encrypted by Phillap and has no automatic cloud backup. Protect your Windows login, back up important data yourself, and do not store passwords, account numbers, or card details.
 
 ## Home dashboard and life areas
 
-Home shows open to-dos, recent thoughts, file upload, and shortcuts to each area. Each life area has its own accent color. Choose among Forest Temple, Moonlit Grove, Golden Canopy, Moss Sanctuary, and Quiet Stone background themes; the selection is saved in this browser on this PC. The illustrated forest-and-stone artwork is bundled locally and does not require an image service. Thoughts, Dreams, Journal, To-dos, and Finances have separate forms and saved lists. To-dos can have a due date and completion state. Finance entries can contain an optional dollar amount; this is a basic private note tracker, not a bank connection or financial advice.
+Home shows open to-dos, recent thoughts, the monthly money estimate, file upload, and shortcuts to each area. Each built-in life area has its own accent color. Choose among Forest Temple, Moonlit Grove, Golden Canopy, Moss Sanctuary, and Quiet Stone background themes; the selection is saved in this browser on this PC. The illustrated forest-and-stone artwork is bundled locally and does not require an image service. Reading settings include selectable serif/sans fonts, larger type, and high contrast with reduced motion. Thoughts, Dreams, Journal, To-dos, and custom spaces have separate forms and saved lists. To-dos can have a due date and completion state.
+
+### Money
+
+Add income and bills as weekly, every two weeks, monthly, quarterly, yearly, or one-time items. Phillap converts recurring amounts to monthly estimates and displays listed income minus listed expenses. One-time items are excluded from that recurring total. You may label an item with a household member and category. This is manual tracking only: it does not connect to banks, account providers, or live balances, and it is not financial advice. The estimate may omit taxes, irregular expenses, savings, debt, or any item you have not entered.
+
+### Big goals
+
+Save high-, normal-, and later-priority goals. The Home screen keeps the highest-priority goals visible.
+
+### Plans and projects
+
+Create a project, then add or edit material quantities, unit prices, and quote sources, and track checklist steps. The fence starter uses adjustable dimensions and rough quantity assumptions to help begin planning; it is not a structural design, code review, or purchase-ready quote. Prices start at $0 until you enter a current quote. Estimates exclude tax, delivery, tools, waste, labor, and permit fees. Confirm measurements, product specifications, property boundaries, utility markings, and local rules before buying or building.
+
+Custom spaces and household labels are local organization features, not separate user accounts or sharing permissions. Partner accounts, separate private profiles, encrypted app storage, shared sync, direct Google sign-in, and automatic Google Calendar integration are not implemented; do not treat this prototype as ready for multi-user or public use. The current shared PC app has no per-person access controls.
 
 Each area displays at most 200 entries at once. SQLite has no configured total-entry quota; practical capacity depends on free disk space.
 
 ## Files and assistant
 
-Choose or drag in PDF, Word (.docx), Markdown, text, CSV, and supported code/config files from Home or Files. Select **Edit copy** to revise extracted text; Phillap saves a separate copy in its local file library and leaves the downloaded or synced original unchanged. Use **Download** on the edited copy to place it in a synced folder; this does not update Google Drive automatically. Editing PDF and Word documents creates a Markdown text copy; text and code files keep their original extension. Uploads are limited to 10 MB each, with no separate total-file quota beyond disk space. The assistant scans up to 300 files in each source folder and uses up to five matching excerpts per answer. PDF text extraction uses `pypdf`; scanned-image PDFs need OCR. The assistant sends matching excerpts and your question to the configured Ollama endpoint when you ask. It does not automatically send your personal life-area entries. Only select files and folders you are comfortable sharing with your local model.
+Choose or drag in PDF, Word (.docx), Markdown, text, CSV, and supported code/config files from Home or Files. Label each upload Critical or Non-critical. Non-critical files get a 10-day review date; Phillap never automatically deletes files. You can keep them indefinitely or remove them yourself. Select **Edit copy** to revise extracted text; Phillap saves a separate copy in its local file library and leaves the downloaded or synced original unchanged. Use **Download** on the edited copy to place it in a synced folder; this does not update Google Drive automatically. Editing PDF and Word documents creates a Markdown text copy; text and code files keep their original extension. Uploads are limited to 10 MB each, with no separate total-file quota beyond disk space. The assistant scans up to 300 files in each source folder and uses up to five matching excerpts per answer. PDF text extraction uses `pypdf`; scanned-image PDFs need OCR. The assistant sends matching excerpts and your question to the configured Ollama endpoint when you ask. It can also use web-page text that you explicitly paste, with the source URL included for citation; Phillap cannot read browser pages directly. It does not automatically send your personal life-area entries. Assistant conversations are saved locally and visible to anyone using this same Windows profile. Only select files and folders you are comfortable sharing with your local model.
+
+## Web & AI browser shortcuts
+
+The Web & AI area opens ChatGPT, Gemini, Claude, Google Docs, Google Voice, Google Search, or a website you enter in your normal browser. You can keep up to 50 local bookmarks. This preserves your browser sign-in; Phillap does not see credentials or page contents. Google Voice calls are made by you on its site. Search opens Google in your browser. To ask the local assistant about web research, paste selected text and its source URL into the Assistant. This is a browser launchpad, not an embedded browser or automatic web crawler. External AI sites have their own terms and may charge; Phillap does not send your files to them.
 
 ## Computer tools
 
@@ -29,3 +47,5 @@ The Computer area can open an exact file/application path after confirmation. It
 ## GitHub
 
 The writable fork is `pearceaj23-create/pearceaj-create`, and `upstream` points to `jacobbaltins/pearceaj-create`. Issue and pull-request listing uses GitHub CLI. Creating issues requires write access; creating a pull request also requires a branch with commits pushed to the fork.
+
+See [CHANGELOG.md](CHANGELOG.md) for recorded feature milestones.
