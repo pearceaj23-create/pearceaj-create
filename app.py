@@ -424,7 +424,12 @@ def get_calendar_entries(month):
             "SELECT id,title,due_date,due_time,completed,priority FROM entries WHERE area='todos' AND due_date>=? AND due_date<? ORDER BY due_date,due_time IS NULL,due_time,priority,id LIMIT 500",
             (start_date, next_month),
         ).fetchall()
-    return {"month": month, "entries": [dict(row) | {"completed": bool(row["completed"])} for row in rows]}
+        bill_rows = conn.execute(
+            "SELECT title,amount_cents,due_day FROM finance_items WHERE direction='expense' AND frequency='monthly' AND due_day IS NOT NULL ORDER BY due_day,title COLLATE NOCASE"
+        ).fetchall()
+    days_in_month = calendar.monthrange(year, month_number)[1]
+    bills = [{"title": b["title"], "amount": b["amount_cents"] / 100, "due_date": f"{month}-{min(b['due_day'], days_in_month):02d}"} for b in bill_rows]
+    return {"month": month, "entries": [dict(row) | {"completed": bool(row["completed"])} for row in rows], "bills": bills}
 
 
 def get_weekly_review():
