@@ -8,7 +8,7 @@ from unittest import mock
 import urllib.error
 import urllib.request
 import zipfile
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from unittest.mock import patch
@@ -449,6 +449,21 @@ class HealthAndLoggingTests(unittest.TestCase):
         with mock.patch.object(app.backup, "list_backups", return_value=[{"name": "x.zip", "modified": "2031-05-10T12:00:00"}]):
             self.assertEqual(app.get_today(now)["backup_age_days"], 5)
 
+    def test_habit_streak_counts_consecutive_days(self):
+        habit = app.save_habit({"name": "Walk"})
+        today = date.today()
+        for back in (0, 1, 2, 4):
+            app.set_habit_completion({"id": habit["id"], "completed": True, "date": (today - timedelta(days=back)).isoformat()})
+        listed = app.list_habits()[0]
+        self.assertGreaterEqual(listed["streak"], 1)
+        self.assertLessEqual(listed["streak"], 3)
+
+    def test_year_review_summarises_the_year(self):
+        review = app.year_review(2031)
+        self.assertEqual((review["year"], review["tasks_completed"], review["habit_checkins"]), (2031, 0, 0))
+        self.assertEqual(len(review["tasks_by_month"]), 12)
+        with self.assertRaises(ValueError):
+            app.year_review("abc")
     def test_update_check_reports_when_no_public_release_exists(self):
         real_urlopen = urllib.request.urlopen
         def mocked_urlopen(request, timeout=0):

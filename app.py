@@ -1383,7 +1383,39 @@ def list_habits():
             (end.isoformat(), start.isoformat(), end.isoformat()),
         ).fetchall()
     return [{"id": row["id"], "name": row["name"], "done_today": bool(row["done_today"]),
-             "completed_days": row["completed_days"]} for row in rows]
+             "completed_days": row["completed_days"], "streak": habit_streak(row["id"], end)} for row in rows]
+
+
+def habit_streak(habit_id, today):
+    with db_connect() as conn:
+        done = {row[0] for row in conn.execute(
+            "SELECT completion_date FROM habit_completions WHERE habit_id=? AND completed=1 AND completion_date>=?",
+            (habit_id, (today - timedelta(days=400)).isoformat()))}
+    day = today if today.isoformat() in done else today - timedelta(days=1)
+    streak = 0
+    while day.isoformat() in done:
+        streak += 1
+        day -= timedelta(days=1)
+    return streak
+
+
+def year_review(year):
+    year = _finance_report_year(year)
+    start, end = f"{year:04d}-01-01", f"{year + 1:04d}-01-01"
+    with db_connect() as conn:
+        per_month = [0] * 12
+        for row in conn.execute(
+            "SELECT substr(completed_at,6,2) AS m, COUNT(*) AS n FROM entries WHERE area='todos' AND completed=1 AND completed_at>=? AND completed_at<? GROUP BY m",
+            (start, end)):
+            per_month[int(row["m"]) - 1] = row["n"]
+        habit_checkins = conn.execute(
+            "SELECT COUNT(*) FROM habit_completions WHERE completed=1 AND completion_date>=? AND completion_date<?", (start, end)).fetchone()[0]
+        journal_entries = conn.execute(
+            "SELECT COUNT(*) FROM entries WHERE area='journal' AND created_at>=? AND created_at<?", (start, end)).fetchone()[0]
+    report = finance_report(year)
+    return {"year": year, "tasks_completed": sum(per_month), "tasks_by_month": per_month,
+            "habit_checkins": habit_checkins, "journal_entries": journal_entries,
+            "income": report["income"], "expenses": report["expenses"], "net": report["net"]}
 
 
 def save_habit(data):
@@ -2845,6 +2877,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json(finance_report(query.get("year", [date.today().year])[0]))
             if route == "/api/habits":
                 return self.send_json(list_habits())
+            if route == "/api/year-review":
+                params = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+                return self.send_json(year_review(params.get("year", [date.today().year])[0]))
             if re.fullmatch(r"/api/life/(health|contacts|packing|maintenance|wishlist|reading)", route):
                 return self.send_json(list_life_records(route.rsplit("/", 1)[-1]))
             if route == "/api/projects":
