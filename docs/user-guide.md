@@ -56,7 +56,7 @@ CSV imports append supported To-do or Money records and validate the entire file
 
 ### Phillap does not start
 
-Confirm Python 3.10 or later is installed. From the Phillap folder, run `python -m pip install -r requirements.txt`, then `python app.py`. Keep the terminal open and check its error output.
+If you use the standalone release, make sure you extracted the ZIP first (not run it from inside the archive), and that another copy of Phillap or another program is not already using port 8765. If you run from source, confirm Python 3.10 or later is installed. From the Phillap folder, run `python -m pip install -r requirements.txt`, then `python app.py`. Keep the terminal open and check its error output.
 
 ### The page does not load
 
