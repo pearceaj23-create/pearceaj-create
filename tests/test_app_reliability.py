@@ -405,8 +405,8 @@ class HealthAndLoggingTests(unittest.TestCase):
 
     def test_update_check_reports_newer_release_without_installing_it(self):
         release = {
-            "tag_name": "v0.0.5",
-            "html_url": f"https://github.com/{app.UPDATE_REPOSITORY}/releases/tag/v0.0.5",
+            "tag_name": "v0.9.0",
+            "html_url": f"https://github.com/{app.UPDATE_REPOSITORY}/releases/tag/v0.9.0",
         }
         real_urlopen = urllib.request.urlopen
         def mocked_urlopen(request, timeout=0):
@@ -418,7 +418,7 @@ class HealthAndLoggingTests(unittest.TestCase):
             status, result = self.get_json("/api/update")
         self.assertEqual(status, 200)
         self.assertTrue(result["update_available"])
-        self.assertEqual(result["latest_version"], "0.0.5")
+        self.assertEqual(result["latest_version"], "0.9.0")
         self.assertEqual(result["current_version"], app.APP_VERSION)
         github_call = next(call for call in open_url.call_args_list if str(getattr(call.args[0], "full_url", call.args[0])).startswith("https://api.github.com/"))
         self.assertEqual(github_call.kwargs["timeout"], 5)
