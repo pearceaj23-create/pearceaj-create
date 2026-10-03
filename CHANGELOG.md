@@ -2,13 +2,22 @@
 
 Notable product milestones are recorded here. Patch-sized fixes may remain in Git history; a new version entry is added for meaningful feature releases.
 
+## Unreleased
+
+- Added an optional local app PIN lock using a salted PBKDF2 hash; it gates the local API but is not encryption or multi-user access control.
+- Added separate manual AES-GCM encrypted backups; encryption passphrases are never stored, and automatic backups remain unencrypted.
+- Added the first-run welcome tour, Today-widget ordering/visibility, a light paper theme, and reduced-motion-aware pressed-button feedback.
+- Added upcoming monthly bill due dates to Today and a manual GitHub release check with a documented executable replacement path.
+- Added a PyInstaller single-file Windows build that packages Python, dependencies, and local UI assets; source and release ZIP workflows remain documented.
+- Expanded the local Food & Pantry, project, life-area, document-library, Assistant, task, search, and finance tools; see the user guide for scope and limitations.
+
 ## 0.0.4
 
 - Today screen opens first (overdue, due today, priority goals, quick add) with a fixed bottom navigation bar and a More menu.
 - Automatic daily local backup (7 kept), JSON/CSV export, and confirmed restore with a pre-restore backup (Data protection).
 - Backups are .zip bundles including settings and uploaded documents; restore saves a safety copy first. Local search covers records, file names and document contents.
 - A floating "+ Add" button on every screen opens a quick task/reminder sheet (a date makes it a reminder).
-- Not included: encryption, cloud sync, time-of-day reminders, a built-in Food area.
+- Automatic backups are unencrypted; optional manual encrypted backups are now documented in Unreleased. Cloud sync and time-of-day reminders are not included.
 
 ## 0.0.2 — 2026-10-02
 

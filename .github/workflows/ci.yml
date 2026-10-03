@@ -1,0 +1,24 @@
+name: CI
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: pip install -r requirements-test.txt
+      - name: Install Playwright browser
+        run: python -m playwright install chromium
+      - name: Python compile check
+        run: python -m compileall -q app.py backup.py tests
+      - name: JavaScript syntax check
+        run: python tests/check_js_syntax.py
+      - name: Unit and route tests
+        run: python -m unittest discover -s tests
