@@ -204,6 +204,17 @@ class HealthAndLoggingTests(unittest.TestCase):
         self.assertIn("Backup secret", titles)
         self.assertNotIn("Current data", titles)
 
+    def test_removing_app_lock_from_settings_recovers_forgotten_pin(self):
+        self.post_json("/api/lock/setup", {"pin": "042681"})
+        self.post_json("/api/lock", {})
+        self.assertEqual(self.get_json_error("/api/areas")[0], 423)
+        path = self.root / "settings.json"
+        config = json.loads(path.read_text(encoding="utf-8"))
+        config.pop("app_lock")
+        path.write_text(json.dumps(config), encoding="utf-8")
+        self.assertEqual(self.get_json("/api/lock/status")[1], {"enabled": False, "unlocked": True})
+        self.assertEqual(self.get_json("/api/areas")[0], 200)
+
     def test_app_lock_hashes_pin_and_gates_local_api_until_unlocked(self):
         status, initial = self.get_json("/api/lock/status")
         self.assertEqual((status, initial), (200, {"enabled": False, "unlocked": True}))

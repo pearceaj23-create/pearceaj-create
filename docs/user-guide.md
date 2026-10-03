@@ -78,6 +78,10 @@ Ollama must be installed, running, and have a model downloaded. For example, run
 
 Check Files and `%LOCALAPPDATA%\Phillap\files`. Confirm the format is supported and the upload is within 10 MB. Folder search scans up to 300 files and only extracts supported content.
 
+### I forgot my app PIN
+
+The PIN only deters casual access and cannot be recovered. Close Phillap, open `%LOCALAPPDATA%\Phillap\settings.json` in a text editor, delete the `"app_lock"` entry (keep the JSON valid), save, and start Phillap again. The lock will be off and you can set a new PIN under Data protection. Your data is not changed.
+
 ### Restore replaced data unexpectedly
 
 Restore replaces current data. Phillap creates a safety copy first; stop making further changes and restore the appropriate safety copy from **More > Data protection** if necessary.
