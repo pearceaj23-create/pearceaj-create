@@ -4,6 +4,8 @@ Notable product milestones are recorded here. Patch-sized fixes may remain in Gi
 
 ## Unreleased
 
+## 0.1.0
+
 - Added an optional local app PIN lock using a salted PBKDF2 hash; it gates the local API but is not encryption or multi-user access control.
 - Added separate manual AES-GCM encrypted backups; encryption passphrases are never stored, and automatic backups remain unencrypted.
 - Added the first-run welcome tour, Today-widget ordering/visibility, a light paper theme, and reduced-motion-aware pressed-button feedback.
