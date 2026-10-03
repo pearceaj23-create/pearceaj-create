@@ -4,6 +4,9 @@ Notable product milestones are recorded here. Patch-sized fixes may remain in Gi
 
 ## Unreleased
 
+## 0.1.2
+
+- Browser reminders stay quiet between 22:00 and 07:00.
 - Calendar now shows monthly bills on their due dates.
 - Added a Print money summary button on the Money page.
 - Documented forgotten-PIN recovery (with a test) and refreshed launch troubleshooting and the download page note.
