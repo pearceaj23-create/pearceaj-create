@@ -49,3 +49,7 @@ The Computer area can open an exact file/application path after confirmation. It
 The writable fork is `pearceaj23-create/pearceaj-create`, and `upstream` points to `jacobbaltins/pearceaj-create`. Issue and pull-request listing uses GitHub CLI. Creating issues requires write access; creating a pull request also requires a branch with commits pushed to the fork.
 
 See [CHANGELOG.md](CHANGELOG.md) for recorded feature milestones.
+
+## Download page
+
+docs/index.html is a static download page (host it with GitHub Pages from the docs folder). Run package.ps1 to build dist\Phillap.zip, then attach it to a GitHub release named Phillap.zip; the page's button points at the latest release. No site is published and no release exists yet. Python 3.10+ is still required on the user's PC.
