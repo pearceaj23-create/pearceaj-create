@@ -273,7 +273,7 @@ class DataProtectionBrowserTest(unittest.TestCase):
                         page.locator("#backup-folder").fill(custom_dir)
                         page.get_by_role("button", name="Save folder").click()
                         page.get_by_text("Backup folder saved.").wait_for()
-                        self.assertEqual(page.locator("#backup-folder").input_value(), custom_dir)
+                        self.assertTrue(Path(page.locator("#backup-folder").input_value()).samefile(custom_dir))
                         with patch.object(app.os, "startfile", create=True) as open_folder:
                             page.get_by_role("button", name="Open backup folder").click()
                             page.get_by_text("Opened the backup folder.").wait_for()
