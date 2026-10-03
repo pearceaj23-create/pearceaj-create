@@ -22,3 +22,19 @@ jobs:
         run: python tests/check_js_syntax.py
       - name: Unit and route tests
         run: python -m unittest discover -s tests
+  build:
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements-build.txt
+      - name: Build Phillap.exe and zip
+        run: ./package.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Phillap
+          path: dist/Phillap.zip
+          retention-days: 14
