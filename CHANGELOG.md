@@ -4,6 +4,17 @@ Notable product milestones are recorded here. Patch-sized fixes may remain in Gi
 
 ## Unreleased
 
+- Calendar now shows monthly bills on their due dates.
+- Added a Print money summary button on the Money page.
+- Documented forgotten-PIN recovery (with a test) and refreshed launch troubleshooting and the download page note.
+
+## 0.1.1
+
+- Added a Today backup reminder when the newest backup is over 7 days old or missing.
+- Added a print button and print stylesheet for the weekly review.
+- Added a ? keyboard shortcut help dialog.
+- Added Dependabot for GitHub Actions and pip.
+
 ## 0.1.0
 
 - Added an optional local app PIN lock using a salted PBKDF2 hash; it gates the local API but is not encryption or multi-user access control.
