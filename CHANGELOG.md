@@ -4,6 +4,10 @@ Notable product milestones are recorded here. Patch-sized fixes may remain in Gi
 
 ## Unreleased
 
+- Quiet hours for browser reminders can now be changed on Today (default 22:00-07:00).
+- Assistant page has a model picker and a Check again button.
+- CI builds Phillap.zip and keeps it as a 14-day artifact.
+
 ## 0.1.2
 
 - Browser reminders stay quiet between 22:00 and 07:00.
