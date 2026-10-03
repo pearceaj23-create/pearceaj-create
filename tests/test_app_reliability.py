@@ -1121,6 +1121,9 @@ class HealthAndLoggingTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(calendar["month"], "2032-03")
         self.assertEqual([item["title"] for item in calendar["entries"]], ["March task"])
+        self.assertEqual(calendar["bills"], [])
+        app.save_finance({"direction": "expense", "title": "Rent", "amount": "900", "frequency": "monthly", "due_day": 31})
+        self.assertEqual(self.get_json("/api/calendar?month=2032-02")[1]["bills"], [{"title": "Rent", "amount": 900.0, "due_date": "2032-02-29"}])
         for invalid in ("2032-13", "2032-3", "2032-03-01", "0000-01"):
             status, response = self.get_json_error("/api/calendar?month=" + invalid)
             self.assertEqual(status, 400)
