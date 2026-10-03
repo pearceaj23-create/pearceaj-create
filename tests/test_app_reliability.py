@@ -4,6 +4,7 @@ import sqlite3
 import tempfile
 import threading
 import unittest
+from unittest import mock
 import urllib.error
 import urllib.request
 import zipfile
@@ -430,6 +431,12 @@ class HealthAndLoggingTests(unittest.TestCase):
         today = datetime(2031, 5, 15, 12, 0)
         result = app.get_today(today)
         self.assertEqual(result["bills_due"], [{"title": "Power", "amount": 85.25, "due_date": "2031-05-20"}])
+
+    def test_today_reports_backup_age(self):
+        now = datetime(2031, 5, 15, 12, 0)
+        self.assertIsNone(app.get_today(now)["backup_age_days"])
+        with mock.patch.object(app.backup, "list_backups", return_value=[{"name": "x.zip", "modified": "2031-05-10T12:00:00"}]):
+            self.assertEqual(app.get_today(now)["backup_age_days"], 5)
 
     def test_update_check_reports_when_no_public_release_exists(self):
         real_urlopen = urllib.request.urlopen
