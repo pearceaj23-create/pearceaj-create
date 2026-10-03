@@ -6,6 +6,8 @@ Notable product milestones are recorded here. Patch-sized fixes may remain in Gi
 
 - Today screen opens first (overdue, due today, priority goals, quick add) with a fixed bottom navigation bar and a More menu.
 - Automatic daily local backup (7 kept), JSON/CSV export, and confirmed restore with a pre-restore backup (Data protection).
+- Backups are .zip bundles including settings and uploaded documents; restore saves a safety copy first. Local search covers records, file names and document contents.
+- A floating "+ Add" button on every screen opens a quick task/reminder sheet (a date makes it a reminder).
 - Not included: encryption, cloud sync, time-of-day reminders, a built-in Food area.
 
 ## 0.0.2 — 2026-10-02

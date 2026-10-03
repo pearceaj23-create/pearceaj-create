@@ -1,8 +1,9 @@
 """Local backup, export and restore helpers for Phillap.
 
-All functions take explicit paths so they can be tested against temporary
-databases. Backups are plain SQLite copies stored on this PC (not encrypted
-and not synced anywhere).
+A backup is a single .zip bundle holding a consistent snapshot of the SQLite
+database, settings.json and the uploaded documents. Every function takes
+explicit paths so it can be exercised against temporary folders. Bundles stay
+on this PC; they are not encrypted and not synced anywhere.
 """
 from __future__ import annotations
 
@@ -10,14 +11,22 @@ import csv
 import io
 import os
 import re
+import shutil
 import sqlite3
+import tempfile
+import zipfile
 from datetime import datetime
 from pathlib import Path
 
 KEEP_DAILY = 7
 KEEP_PRE_RESTORE = 5
-DAILY_RE = re.compile(r"phillap-backup-(\d{8})\.sqlite3")
-PRE_RE = re.compile(r"pre-restore-(\d{8}-\d{6})(?:-\d+)?\.sqlite3")
+MAX_BUNDLE_BYTES = 4 * 1024 * 1024 * 1024
+DAILY_RE = re.compile(r"phillap-backup-(\d{8})\.zip")
+PRE_RE = re.compile(r"pre-restore-(\d{8}-\d{6})(?:-\d+)?\.zip")
+DB_ENTRY = "phillap.sqlite3"
+SETTINGS_ENTRY = "settings.json"
+FILE_PREFIX = "files/"
+FILE_NAME_RE = re.compile(r"[a-f0-9]{32}__[^/\\:\x00]+")
 REQUIRED_TABLES = {"entries"}
 
 
@@ -25,18 +34,31 @@ def _connect_ro(path: Path) -> sqlite3.Connection:
     return sqlite3.connect(f"{Path(path).resolve().as_uri()}?mode=ro", uri=True)
 
 
-def _copy_db(src: Path, dest: Path) -> None:
-    """Consistent copy via SQLite's online backup API, written atomically."""
-    tmp = dest.with_name(dest.name + ".tmp")
-    if tmp.exists():
-        tmp.unlink()
+def _snapshot_db(src: Path, dest: Path) -> None:
     source = sqlite3.connect(src)
-    target = sqlite3.connect(tmp)
+    target = sqlite3.connect(dest)
     try:
         source.backup(target)
     finally:
         target.close()
         source.close()
+
+
+def _write_bundle(dest: Path, db_path: Path, settings_path: Path | None, files_dir: Path | None) -> None:
+    """Write a bundle atomically (temp file then replace)."""
+    tmp = dest.with_name(dest.name + ".tmp")
+    tmp.unlink(missing_ok=True)
+    with tempfile.TemporaryDirectory(dir=dest.parent) as work:
+        snap = Path(work) / DB_ENTRY
+        _snapshot_db(db_path, snap)
+        with zipfile.ZipFile(tmp, "w", zipfile.ZIP_DEFLATED) as zf:
+            zf.write(snap, DB_ENTRY)
+            if settings_path and Path(settings_path).is_file():
+                zf.write(settings_path, SETTINGS_ENTRY)
+            if files_dir and Path(files_dir).is_dir():
+                for f in sorted(Path(files_dir).iterdir()):
+                    if f.is_file() and not f.is_symlink() and FILE_NAME_RE.fullmatch(f.name):
+                        zf.write(f, FILE_PREFIX + f.name)
     os.replace(tmp, dest)
 
 
@@ -46,23 +68,25 @@ def _prune(backup_dir: Path, regex: re.Pattern, keep: int) -> None:
         old.unlink()
 
 
-def create_daily_backup(db_path: Path, backup_dir: Path, now: datetime | None = None) -> dict:
-    """Create today's backup if missing. An existing same-day backup is never overwritten."""
+def create_daily_backup(db_path: Path, backup_dir: Path, now: datetime | None = None,
+                        settings_path: Path | None = None, files_dir: Path | None = None) -> dict:
+    """Create today's bundle if missing. An existing same-day bundle is never overwritten."""
     db_path, backup_dir = Path(db_path), Path(backup_dir)
     now = now or datetime.now()
     if not db_path.exists():
         return {"created": False, "reason": "no database yet"}
     backup_dir.mkdir(parents=True, exist_ok=True)
-    name = f"phillap-backup-{now:%Y%m%d}.sqlite3"
+    name = f"phillap-backup-{now:%Y%m%d}.zip"
     dest = backup_dir / name
     if dest.exists():
         return {"created": False, "name": name, "reason": "already backed up today"}
-    _copy_db(db_path, dest)
+    _write_bundle(dest, db_path, settings_path, files_dir)
     _prune(backup_dir, DAILY_RE, KEEP_DAILY)
     return {"created": True, "name": name}
 
 
-def create_pre_restore_backup(db_path: Path, backup_dir: Path, now: datetime | None = None) -> str | None:
+def create_pre_restore_backup(db_path: Path, backup_dir: Path, now: datetime | None = None,
+                              settings_path: Path | None = None, files_dir: Path | None = None) -> str | None:
     db_path, backup_dir = Path(db_path), Path(backup_dir)
     if not db_path.exists():
         return None
@@ -70,12 +94,12 @@ def create_pre_restore_backup(db_path: Path, backup_dir: Path, now: datetime | N
     now = now or datetime.now()
     stem, n = f"pre-restore-{now:%Y%m%d-%H%M%S}", 0
     while True:
-        name = f"{stem}.sqlite3" if n == 0 else f"{stem}-{n}.sqlite3"
+        name = f"{stem}.zip" if n == 0 else f"{stem}-{n}.zip"
         dest = backup_dir / name
         if not dest.exists():
             break
         n += 1
-    _copy_db(db_path, dest)
+    _write_bundle(dest, db_path, settings_path, files_dir)
     _prune(backup_dir, PRE_RE, KEEP_PRE_RESTORE)
     return name
 
@@ -105,7 +129,33 @@ def resolve_backup(backup_dir: Path, name: str) -> Path:
     return path
 
 
-def validate_backup(path: Path) -> None:
+def _bad() -> ValueError:
+    return ValueError("That backup is not a valid Phillap backup.")
+
+
+def _check_members(zf: zipfile.ZipFile) -> list[zipfile.ZipInfo]:
+    infos = zf.infolist()
+    names = [i.filename for i in infos]
+    if len(set(names)) != len(names) or DB_ENTRY not in names:
+        raise _bad()
+    total = 0
+    for i in infos:
+        n = i.filename
+        ok = n in (DB_ENTRY, SETTINGS_ENTRY) or (n.startswith(FILE_PREFIX) and FILE_NAME_RE.fullmatch(n[len(FILE_PREFIX):]))
+        if not ok or i.is_dir():
+            raise _bad()
+        total += i.file_size
+    if total > MAX_BUNDLE_BYTES:
+        raise _bad()
+    return infos
+
+
+def _extract(zf: zipfile.ZipFile, name: str, dest: Path) -> None:
+    with zf.open(name) as src, open(dest, "wb") as out:
+        shutil.copyfileobj(src, out)
+
+
+def validate_db(path: Path) -> None:
     try:
         conn = _connect_ro(path)
         try:
@@ -115,26 +165,65 @@ def validate_backup(path: Path) -> None:
         finally:
             conn.close()
     except sqlite3.DatabaseError as exc:
-        raise ValueError("That backup is not a valid Phillap database.") from exc
+        raise _bad() from exc
     if not REQUIRED_TABLES <= tables:
-        raise ValueError("That backup is not a valid Phillap database.")
+        raise _bad()
 
 
-def restore_backup(db_path: Path, backup_dir: Path, name: str, confirm: bool, now: datetime | None = None) -> dict:
-    """Restore a named backup over the live database after making a pre-restore backup."""
+def validate_backup(path: Path) -> None:
+    try:
+        with zipfile.ZipFile(path) as zf:
+            _check_members(zf)
+            if zf.testzip() is not None:
+                raise _bad()
+            with tempfile.TemporaryDirectory() as work:
+                _extract(zf, DB_ENTRY, Path(work) / DB_ENTRY)
+                validate_db(Path(work) / DB_ENTRY)
+    except zipfile.BadZipFile as exc:
+        raise _bad() from exc
+
+
+def restore_backup(db_path: Path, backup_dir: Path, name: str, confirm: bool, now: datetime | None = None,
+                   settings_path: Path | None = None, files_dir: Path | None = None) -> dict:
+    """Restore a named bundle over the live data after saving a pre-restore bundle.
+
+    Requires confirm=True. The pre-restore bundle holds the current database,
+    settings and documents so the restore can be undone.
+    """
     if confirm is not True:
         raise ValueError("Restoring replaces your current data. Please confirm to continue.")
     db_path, backup_dir = Path(db_path), Path(backup_dir)
     source = resolve_backup(backup_dir, name)
     validate_backup(source)
-    pre = create_pre_restore_backup(db_path, backup_dir, now)
-    src = _connect_ro(source)
-    dest = sqlite3.connect(db_path)
-    try:
-        src.backup(dest)
-    finally:
-        dest.close()
-        src.close()
+    pre = create_pre_restore_backup(db_path, backup_dir, now, settings_path, files_dir)
+    with zipfile.ZipFile(source) as zf, tempfile.TemporaryDirectory() as work:
+        work = Path(work)
+        _extract(zf, DB_ENTRY, work / DB_ENTRY)
+        members = {i.filename for i in zf.infolist()}
+        if files_dir is not None:
+            files_dir = Path(files_dir)
+            files_dir.mkdir(parents=True, exist_ok=True)
+            wanted = set()
+            for m in sorted(members):
+                if m.startswith(FILE_PREFIX):
+                    fname = m[len(FILE_PREFIX):]
+                    wanted.add(fname)
+                    tmp = files_dir / (fname + ".restoring")
+                    _extract(zf, m, tmp)
+                    os.replace(tmp, files_dir / fname)
+            for f in files_dir.iterdir():
+                if f.is_file() and FILE_NAME_RE.fullmatch(f.name) and f.name not in wanted:
+                    f.unlink()
+        if settings_path is not None and SETTINGS_ENTRY in members:
+            _extract(zf, SETTINGS_ENTRY, work / SETTINGS_ENTRY)
+            shutil.copyfile(work / SETTINGS_ENTRY, settings_path)
+        src = _connect_ro(work / DB_ENTRY)
+        dest = sqlite3.connect(db_path)
+        try:
+            src.backup(dest)
+        finally:
+            dest.close()
+            src.close()
     return {"restored": name, "pre_restore_backup": pre}
 
 

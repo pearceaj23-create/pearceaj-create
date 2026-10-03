@@ -169,6 +169,58 @@ def get_today():
     }
 
 
+_TEXT_CACHE = {}
+SEARCH_TEXT_LIMIT = 2_000_000
+
+
+def _document_text_cached(file):
+    stat = file.stat()
+    key = (str(file), stat.st_mtime_ns, stat.st_size)
+    if key not in _TEXT_CACHE:
+        if len(_TEXT_CACHE) > 200:
+            _TEXT_CACHE.clear()
+        try:
+            _TEXT_CACHE[key] = read_document_text(file)[:SEARCH_TEXT_LIMIT] if stat.st_size <= MAX_UPLOAD_BYTES else ""
+        except (OSError, ValueError, RuntimeError, zipfile.BadZipFile, KeyError, ET.ParseError):
+            _TEXT_CACHE[key] = ""
+    return _TEXT_CACHE[key]
+
+
+def _snippet(text, term):
+    index = text.casefold().find(term)
+    if index < 0:
+        return ""
+    start = max(0, index - 50)
+    return re.sub(r"\s+", " ", text[start:index + len(term) + 90]).strip()
+
+
+def universal_search(query):
+    """Local search across app records, file names and document contents."""
+    term = (query or "").strip().casefold()
+    if len(term) < 2 or len(term) > 100:
+        raise ValueError("Type at least 2 characters to search.")
+    like = "%" + term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+    results = []
+    with db_connect() as conn:
+        for r in conn.execute("SELECT id,area,title,content FROM entries WHERE lower(title) LIKE ? ESCAPE '\\' OR lower(content) LIKE ? ESCAPE '\\' ORDER BY updated_at DESC LIMIT 30", (like, like)):
+            results.append({"kind": "entry", "area": r["area"], "id": r["id"], "title": r["title"], "snippet": _snippet(r["content"] or "", term) or _snippet(r["title"], term)})
+        for r in conn.execute("SELECT id,title,description FROM goals WHERE lower(title) LIKE ? ESCAPE '\\' OR lower(description) LIKE ? ESCAPE '\\' LIMIT 20", (like, like)):
+            results.append({"kind": "goal", "area": "goals", "id": r["id"], "title": r["title"], "snippet": _snippet(r["description"] or "", term) or _snippet(r["title"], term)})
+        for r in conn.execute("SELECT c.id,c.title,m.content FROM conversations c JOIN conversation_messages m ON m.conversation_id=c.id WHERE lower(c.title) LIKE ? ESCAPE '\\' OR lower(m.content) LIKE ? ESCAPE '\\' GROUP BY c.id LIMIT 20", (like, like)):
+            results.append({"kind": "chat", "area": "files", "id": r["id"], "title": r["title"], "snippet": _snippet(r["content"], term)})
+    for item in list_uploaded_files():
+        in_name = term in item["name"].casefold()
+        snippet = ""
+        if item["supported"]:
+            try:
+                snippet = _snippet(_document_text_cached(uploaded_file(item["id"])), term)
+            except (ValueError, OSError):
+                snippet = ""
+        if in_name or snippet:
+            results.append({"kind": "file", "area": "files", "id": item["id"], "title": item["name"], "snippet": snippet or "File name match", "in_content": bool(snippet)})
+    return {"query": query.strip(), "results": results[:80]}
+
+
 def list_goals():
     with db_connect() as conn:
         rows = conn.execute("SELECT * FROM goals ORDER BY priority ASC, updated_at DESC, id DESC LIMIT 100").fetchall()
@@ -1004,6 +1056,9 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send_json(list_finances())
             if route == "/api/projects":
                 return self.send_json(list_projects())
+            if route == "/api/search":
+                params = urllib.parse.parse_qs(urllib.parse.urlsplit(self.path).query)
+                return self.send_json(universal_search(params.get("q", [""])[0]))
             if route == "/api/today":
                 return self.send_json(get_today())
             if route == "/api/backups":
@@ -1087,9 +1142,9 @@ class Handler(BaseHTTPRequestHandler):
             if route == "/api/projects":
                 return self.send_json(save_project(data), 201)
             if route == "/api/backups/create":
-                return self.send_json(backup.create_daily_backup(DATA_FILE, BACKUP_DIR))
+                return self.send_json(backup.create_daily_backup(DATA_FILE, BACKUP_DIR, settings_path=CONFIG_FILE, files_dir=CONFIG_DIR / "files"))
             if route == "/api/backups/restore":
-                return self.send_json(backup.restore_backup(DATA_FILE, BACKUP_DIR, data.get("name"), data.get("confirm")))
+                return self.send_json(backup.restore_backup(DATA_FILE, BACKUP_DIR, data.get("name"), data.get("confirm"), settings_path=CONFIG_FILE, files_dir=CONFIG_DIR / "files"))
             if route == "/api/goals":
                 return self.send_json(save_goal(data), 201)
             if route == "/api/goals/delete":
@@ -1182,7 +1237,7 @@ class Handler(BaseHTTPRequestHandler):
 
 def main():
     try:
-        result = backup.create_daily_backup(DATA_FILE, BACKUP_DIR)
+        result = backup.create_daily_backup(DATA_FILE, BACKUP_DIR, settings_path=CONFIG_FILE, files_dir=CONFIG_DIR / "files")
         if result.get("created"):
             print(f"Daily backup saved: {BACKUP_DIR / result['name']}")
     except (OSError, sqlite3.Error) as exc:
