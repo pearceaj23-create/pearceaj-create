@@ -39,3 +39,4 @@ First recorded feature milestone after the initial local Phillap build.
 - Added basic read-only Excel (.xlsx) ingestion with sheet/cell references; hidden sheets and rows are excluded by default.
 - Added suggested categories at upload and a visible review window for non-critical file retention (files are never deleted automatically).
 
+

@@ -451,6 +451,17 @@ def get_weekly_review():
             "open_count": open_count, "completed_count": len(completed)}
 
 
+def backup_age_days(now):
+    try:
+        items = backup.list_backups(BACKUP_DIR)
+    except OSError:
+        return None
+    if not items:
+        return None
+    newest = max(datetime.fromisoformat(i["modified"]) for i in items)
+    return max(0, (now - newest).days)
+
+
 def get_today(now=None):
     now = now or datetime.now()
     today = now.strftime("%Y-%m-%d")
@@ -491,6 +502,7 @@ def get_today(now=None):
         "snoozed": snoozed,
         "done_today": done_today,
         "bills_due": bills_due,
+        "backup_age_days": backup_age_days(now),
         "priorities": goals,
     }
 
