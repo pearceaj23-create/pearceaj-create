@@ -1,6 +1,6 @@
 # Phillap
 
-Phillap 0.1.2 is a local-first personal life assistant for Windows. Its start dashboard links to separate Thoughts, Dreams, To-dos, Money, Plans & projects, Journal, Files, Assistant, and Computer areas. You can also create custom spaces such as Baby, Health, Home, or Relationships. Entries are stored on this PC in SQLite; the local model does not automatically receive those personal entries.
+Phillap 0.1.3 is a local-first personal life assistant for Windows. Its start dashboard links to separate Thoughts, Dreams, To-dos, Money, Plans & projects, Journal, Files, Assistant, and Computer areas. You can also create custom spaces such as Baby, Health, Home, or Relationships. Entries are stored on this PC in SQLite; the local model does not automatically receive those personal entries.
 
 ## Start Phillap
 
