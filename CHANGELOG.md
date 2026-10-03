@@ -4,6 +4,7 @@ Notable product milestones are recorded here. Patch-sized fixes may remain in Gi
 
 ## Unreleased
 
+- Added habit streaks, journal prompts, a Pomodoro timer, voice dictation for quick add (where supported), a Year in review on the Weekly page, and a recurring-costs summary on Money.
 ## 0.1.3
 
 - Quiet hours for browser reminders can now be changed on Today (default 22:00-07:00).
