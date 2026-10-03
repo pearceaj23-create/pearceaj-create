@@ -37,7 +37,7 @@ from pathlib import Path
 
 HOST = "127.0.0.1"
 PORT = 8765
-APP_VERSION = "0.1.2"
+APP_VERSION = "0.1.3"
 DEFAULT_REPO = "pearceaj23-create/pearceaj-create"
 TEXT_EXTENSIONS = {".md", ".txt", ".rst", ".py", ".js", ".ts", ".tsx", ".json", ".yaml", ".yml", ".toml", ".html", ".css", ".csv", ".xml", ".ini"}
 PREVIEW_MIME_TYPES = {".pdf": "application/pdf", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif", ".webp": "image/webp"}
