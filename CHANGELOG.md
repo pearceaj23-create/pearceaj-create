@@ -2,6 +2,12 @@
 
 Notable product milestones are recorded here. Patch-sized fixes may remain in Git history; a new version entry is added for meaningful feature releases.
 
+## 0.0.4
+
+- Today screen opens first (overdue, due today, priority goals, quick add) with a fixed bottom navigation bar and a More menu.
+- Automatic daily local backup (7 kept), JSON/CSV export, and confirmed restore with a pre-restore backup (Data protection).
+- Not included: encryption, cloud sync, time-of-day reminders, a built-in Food area.
+
 ## 0.0.2 — 2026-10-02
 
 First recorded feature milestone after the initial local Phillap build.

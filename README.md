@@ -1,6 +1,6 @@
 # Phillap
 
-Phillap 0.0.3 is a local-first personal life assistant for Windows. Its start dashboard links to separate Thoughts, Dreams, To-dos, Money, Plans & projects, Journal, Files, Assistant, and Computer areas. You can also create custom spaces such as Baby, Health, Home, or Relationships. Entries are stored on this PC in SQLite; the local model does not automatically receive those personal entries.
+Phillap 0.0.4 is a local-first personal life assistant for Windows. Its start dashboard links to separate Thoughts, Dreams, To-dos, Money, Plans & projects, Journal, Files, Assistant, and Computer areas. You can also create custom spaces such as Baby, Health, Home, or Relationships. Entries are stored on this PC in SQLite; the local model does not automatically receive those personal entries.
 
 ## Start Phillap
 
@@ -10,7 +10,7 @@ Requirements: Windows, Python 3.10+, Git for Windows, GitHub CLI (optional), and
 2. Sign in with `gh auth login` if you want GitHub features.
 3. Double-click `Start-Phillap.bat`. It installs the PDF reader when needed, starts Phillap, and opens the browser. Or run `python -m pip install -r requirements.txt` and `python app.py`, then open `http://127.0.0.1:8765`.
 
-The web server listens on this PC only. Personal entries are stored in `%LOCALAPPDATA%\Phillap\phillap.sqlite3`; settings live in `%LOCALAPPDATA%\Phillap\settings.json`; uploaded files live in `%LOCALAPPDATA%\Phillap\files`. The database is not encrypted by Phillap and has no automatic cloud backup. Protect your Windows login, back up important data yourself, and do not store passwords, account numbers, or card details.
+The web server listens on this PC only. Personal entries are stored in `%LOCALAPPDATA%\Phillap\phillap.sqlite3`; settings live in `%LOCALAPPDATA%\Phillap\settings.json`; uploaded files live in `%LOCALAPPDATA%\Phillap\files`. The database is not encrypted by Phillap and is not synced to any cloud. Phillap opens on a Today screen (overdue and due-today to-dos first, then top-priority goals) with a bottom navigation bar and quick add. Each launch saves one daily backup in `%LOCALAPPDATA%\Phillap\backups` (the 7 most recent are kept; same-day backups are never overwritten). Under More > Data protection you can back up now, export everything as JSON or any table as CSV, and restore a backup after confirming; a pre-restore backup is saved first. Backups are local and unencrypted copies, so also copy them somewhere safe yourself. Protect your Windows login and do not store passwords, account numbers, or card details.
 
 ## Home dashboard and life areas
 
