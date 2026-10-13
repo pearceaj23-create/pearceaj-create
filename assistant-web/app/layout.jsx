@@ -1,8 +1,8 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Phillap Assistant",
-  description: "A private assistant workspace",
+  title: "Aster — your personal assistant",
+  description: "A private place to make sense of life, choose a next step, and keep moving.",
 };
 
 export default function RootLayout({ children }) {
