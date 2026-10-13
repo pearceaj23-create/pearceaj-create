@@ -94,5 +94,6 @@ export async function sendMessage(formData) {
   ];
   const { error: saveError } = await supabase.from("assistant_messages").insert(inserts);
   if (saveError) redirect("/assistant/talk?error=save");
+  await supabase.from("assistant_conversations").update({ updated_at: new Date().toISOString() }).eq("id", conversation.id).eq("user_id", user.id);
   redirect(`/assistant/talk?id=${encodeURIComponent(conversation.id)}`);
 }

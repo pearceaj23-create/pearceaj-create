@@ -122,3 +122,6 @@ button.icon-button { min-height: 2rem; padding: .35rem .55rem; border: 1px solid
 .entry-toggle { border: 1px solid #cbd8dc; border-radius: 50%; padding: 0; color: var(--teal); background: #fff; }
 @media(max-width:720px) { .talk-layout { grid-template-columns: 1fr; } .conversation-list { grid-template-columns: repeat(2,minmax(0,1fr)); } .panel-heading { grid-column: 1/-1; } .talk-panel { min-height: 68vh; } }
 @media(max-width:480px) { .conversation-list { grid-template-columns: 1fr; } .talk-panel { padding: .85rem; } }
+
+.page-stack { display: grid; gap: 1rem; }
+.notice.error { color: #854940; border-color: #f0d4cf; background: #fff3f1; }
